@@ -8,6 +8,7 @@ Date: 27-06-2024
 
 import threading
 import time
+import os
 import webview
 import toml
 from pynput import keyboard
@@ -18,6 +19,9 @@ KEYBINDS_SHOW_HIDE = config["keybinds"]["show_hide"]
 SCREEN_SELECTOR = config["window"]["screen_selector"]
 
 SCREEN_SIZE = webview.screens[SCREEN_SELECTOR].width, webview.screens[SCREEN_SELECTOR].height
+
+LYRICS_CACHE_LOCATION = os.path.expanduser(config["lyrics"]["cache_location"])
+os.makedirs(LYRICS_CACHE_LOCATION, exist_ok=True)
 
 with open("content/main.html", encoding="utf-8") as f:
     HTML_CONTENT = f.read()
@@ -50,6 +54,9 @@ class Overlay:
     def __init__(self, win:webview.Window):
         self.win = win
         self.window_shown = True
+        self.player = helpers.Player()
+        self.lyrics_fetcher = helpers.LyricsFetcher(LYRICS_CACHE_LOCATION)
+        self.current_lyrics = None
         threading.Thread(target=self._init_hotkey_listener).start()
     def _init_hotkey_listener(self):
         def for_canonical_l(func):
@@ -94,11 +101,36 @@ class Overlay:
         self.win.show()
         self._apply_stylesheet()
         self.mainloop()
+    def _on_track_changed(self, track_info):
+        print(track_info)
+    def _on_lyric_change(self, lyric_index):
+        print(self.current_lyrics.get_lyric(lyric_index))
     def mainloop(self):
         """Handles continuous processes."""
+        prev_track_info = ()
+        prev_lyric_index = [-1, 0]
         while True:
             time.sleep(0.5)
+            if not self.window_shown:
+                continue
             self._keep_window_in_screen()
+            track_info = self.player.get_track_info()
+            if track_info is None:
+                continue
+            if prev_track_info != track_info:
+                prev_track_info = track_info
+                self._on_track_changed(track_info)
+                self.current_lyrics = self.lyrics_fetcher.fetch_synced_lyrics(
+                    track_info[0],
+                    track_info[1]
+                )
+                prev_lyric_index = [-1, 0]
+            lyric_index = self.current_lyrics.get_current_lyric_index(
+                self.player.get_track_position()
+            )
+            if prev_lyric_index[0] != lyric_index[0]:
+                prev_lyric_index = lyric_index
+                self._on_lyric_change(lyric_index[0])
 
 overlay = Overlay(window)
 

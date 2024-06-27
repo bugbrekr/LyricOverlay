@@ -94,22 +94,35 @@ class LyricsFetcher:
             if lyrics.get('synced_lyrics'):
                 return lyrics, True
         search_term = track_title+" "+track_artist
-        lrc = self._get_lrc(search_term)
+        lrc, plrc = self._get_lrc(search_term)
         if not lrc:
             return None, False
         lyrics_data = {
             "source": "LRCLIB",
             "track_title": track_title,
             "track_artist": track_artist,
-            "synced_lyrics": lrc
+            "synced_lyrics": lrc,
+            "plain_lyrics": plrc
         }
         self._cache_lyrics(self._hash_track(track_title, track_artist), lyrics_data)
         return lyrics_data, True
+    def fetch_synced_lyrics(self, track_title, track_artist):
+        """Get synced lyrics object for a track."""
+        lrc, res = self.fetch_synced(track_title, track_artist)
+        if not res:
+            return None
+        return SyncedLyrics(
+            lrc["synced_lyrics"],
+            lrc["track_title"],
+            lrc["track_artist"],
+        )
 
 class SyncedLyrics:
     """Encapsulate the synced lyrics data in a nice class to use cool functions."""
-    def __init__(self, raw_lyrics):
+    def __init__(self, raw_lyrics, track_title, track_artist):
         self._raw_lyrics = raw_lyrics
+        self.track_title = track_title
+        self.track_artist = track_artist
         self._parse_lyrics(self._raw_lyrics)
     def _extract_parts(self, raw_lyric, decimal_precision=2): # i forgot what this does
         if len(raw_lyric) == 8+decimal_precision:
@@ -160,6 +173,11 @@ class SyncedLyrics:
             elif position < self.timest_list[i+1]:
                 return i, round(position-timest, 2)
         return 0, round(position-self.timest_list[0], 2)
+    def get_lyric(self, index:int):
+        """Get selected line from lyrics with index."""
+        if index > len(self.lyrics_list)-1:
+            return None
+        return self.lyrics_list[index]
 
 def hex_to_rgb(h) -> tuple:
     """Convert a hex color code to an rgb tuple"""
