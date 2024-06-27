@@ -7,6 +7,7 @@ Date: 27-06-2024
 """
 
 import threading
+import time
 import webview
 import toml
 from pynput import keyboard
@@ -16,11 +17,13 @@ config = toml.load("config.toml")
 KEYBINDS_SHOW_HIDE = config["keybinds"]["show_hide"]
 SCREEN_SELECTOR = config["window"]["screen_selector"]
 
+SCREEN_SIZE = webview.screens[SCREEN_SELECTOR].width, webview.screens[SCREEN_SELECTOR].height
+
 with open("content/main.html", encoding="utf-8") as f:
     HTML_CONTENT = f.read()
 
 def _get_adjusted_window_geometry():
-    sw, sh = webview.screens[SCREEN_SELECTOR].width, webview.screens[SCREEN_SELECTOR].height
+    sw, sh = SCREEN_SIZE
     cwp, chp = config["window"]["width_percent"], config["window"]["height_percent"]
     w, h = helpers.get_adjusted_window_geometry((sw, sh), (cwp, chp))
     return w, h
@@ -29,7 +32,7 @@ WINDOW_GEOMETRY = _get_adjusted_window_geometry()
 window = webview.create_window(
     'LyricOverlay',
     html=HTML_CONTENT,
-    resizable=config["behaviour"]["allow_resizing"],
+    resizable=False,
     on_top=True,
     frameless=True,
     easy_drag=config["behaviour"]["allow_dragging"],
@@ -46,6 +49,7 @@ class Overlay:
     """This class handles the overlay window."""
     def __init__(self, win:webview.Window):
         self.win = win
+        self.window_shown = True
         threading.Thread(target=self._init_hotkey_listener).start()
     def _init_hotkey_listener(self):
         def for_canonical_l(func):
@@ -58,10 +62,22 @@ class Overlay:
         l.start()
     def on_hotkey(self):
         """Show/hide the window when the hotkey is pressed."""
-        print("hi")
-    def _resize_to_geometry(self):
-        w, h = _get_adjusted_window_geometry()
-        self.win.resize(w, h)
+        if self.window_shown:
+            self.win.hide()
+        else:
+            self.win.show()
+        self.window_shown = not self.window_shown
+    def _keep_window_in_screen(self):
+        x, y = self.win.x, self.win.y
+        if x+self.win.width > SCREEN_SIZE[0]:
+            x = SCREEN_SIZE[0]-self.win.width
+        elif x < 0:
+            x = 0
+        if y+self.win.height > SCREEN_SIZE[1]:
+            y = SCREEN_SIZE[1]-self.win.height
+        elif y < 0:
+            y = 0
+        self.win.move(x, y)
     def _apply_stylesheet(self):
         _opacity = config["theme"]["opacity"]
         _bg_rgb = helpers.hex_to_rgb(config["theme"]["background"])
@@ -75,8 +91,14 @@ class Overlay:
         self.win.load_css(stylesheet)
     def init(self):
         """Window init function."""
-        self._resize_to_geometry()
+        self.win.show()
         self._apply_stylesheet()
+        self.mainloop()
+    def mainloop(self):
+        """Handles continuous processes."""
+        while True:
+            time.sleep(0.5)
+            self._keep_window_in_screen()
 
 overlay = Overlay(window)
 
