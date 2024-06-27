@@ -1,0 +1,7 @@
+body {
+    background-color: rgba({{ ', '.join(background) }});
+}
+
+h1 {
+    color: rgba({{ ', '.join(text) }});
+}

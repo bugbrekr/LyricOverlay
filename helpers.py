@@ -14,11 +14,12 @@ from typing import Optional
 import hashlib
 import dbus
 import requests
+import jinja2
 
 LRCLIB_ROOT_URL = "https://lrclib.net"
 
 class Player:
-    """Handles a DBUS media player."""
+    """Handle a DBUS media player."""
     def __init__(self):
         self.bus = dbus.SessionBus()
     def _get(self, player, key):
@@ -36,7 +37,7 @@ class Player:
                     return player
 
     def get_track_info(self, player=None):
-        """Fetches the track title and artist."""
+        """Fetch the track title and artist."""
         if player is None:
             player = self._get_playing_player()
         if player is None:
@@ -45,7 +46,7 @@ class Player:
         return (str(metadata['xesam:title']), str(metadata['xesam:artist'][0]))
 
     def get_track_position(self, player=None):
-        """Fetches the track playback position."""
+        """Fetch the track playback position."""
         if player is None:
             player = self._get_playing_player()
         if player is None:
@@ -54,7 +55,7 @@ class Player:
         return round(position, 2)
 
 class LyricsFetcher:
-    """Fetches requested lyrics from LRCLIB and handles caching of said lyrics."""
+    """Fetch requested lyrics from LRCLIB and handles caching of said lyrics."""
     def __init__(self, cache_folder):
         self.cache_folder = cache_folder
     def _hash_track(self, track_title, track_artist):
@@ -87,7 +88,7 @@ class LyricsFetcher:
             return
         return (tracks[0]['syncedLyrics'], tracks[0]['plainLyrics'])
     def fetch_synced(self, track_title, track_artist):
-        """Fetches synced lyrics data for a track."""
+        """Fetch synced lyrics data for a track."""
         lyrics = self._get_from_cache(self._hash_track(track_title, track_artist))
         if lyrics:
             if lyrics.get('synced_lyrics'):
@@ -106,7 +107,7 @@ class LyricsFetcher:
         return lyrics_data, True
 
 class SyncedLyrics:
-    """Encapsulates the synced lyrics data in a nice class to use cool functions."""
+    """Encapsulate the synced lyrics data in a nice class to use cool functions."""
     def __init__(self, raw_lyrics):
         self._raw_lyrics = raw_lyrics
         self._parse_lyrics(self._raw_lyrics)
@@ -148,7 +149,7 @@ class SyncedLyrics:
         self.plain_lyrics = "\n".join(self.lyrics_list)
     def get_current_lyric_index(self, position):
         """
-        Returns the index for the currently playing lyric and
+        Return the index for the currently playing lyric and
         the duration passed since the lyric.
         """
         for i, timest in enumerate(self.timest_list):
@@ -160,7 +161,16 @@ class SyncedLyrics:
                 return i, round(position-timest, 2)
         return 0, round(position-self.timest_list[0], 2)
 
-def _hex_to_rgb(h):
+def hex_to_rgb(h) -> tuple:
+    """Convert a hex color code to an rgb tuple"""
     if h[0] == "#":
         h = h[1:]
     return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
+
+def render_template(path, **variables) -> str:
+    """Use Jinja to render a template."""
+    env = jinja2.Environment(loader=jinja2.FileSystemLoader(searchpath=[]))
+    with open(path, encoding="utf-8") as f:
+        content = f.read()
+    template = env.from_string(content)
+    return template.render(variables)
