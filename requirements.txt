@@ -2,6 +2,7 @@ bottle==0.12.25
 certifi==2024.6.2
 charset-normalizer==3.3.2
 dbus-python==1.3.2
+evdev==1.7.1
 idna==3.7
 Jinja2==3.1.4
 MarkupSafe==2.1.5
@@ -9,14 +10,17 @@ packaging==24.1
 proxy-tools==0.1.0
 pycairo==1.26.1
 PyGObject==3.48.2
+pynput==1.7.7
 PyQt5==5.15.10
 PyQt5-Qt5==5.15.2
 PyQt5-sip==12.13.0
 PyQtWebEngine==5.15.6
 PyQtWebEngine-Qt5==5.15.2
+python-xlib==0.33
 pywebview==5.1
 QtPy==2.4.1
 requests==2.32.3
+six==1.16.0
 toml==0.10.2
 typing_extensions==4.12.2
 urllib3==2.2.2

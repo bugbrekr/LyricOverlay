@@ -174,3 +174,9 @@ def render_template(path, **variables) -> str:
         content = f.read()
     template = env.from_string(content)
     return template.render(variables)
+
+def get_adjusted_window_geometry(screen_size, size_percent):
+    """Get adjusted window geometry."""
+    w = screen_size[0]*size_percent[0]/100
+    h = screen_size[1]*size_percent[1]/100
+    return int(w), int(h)
