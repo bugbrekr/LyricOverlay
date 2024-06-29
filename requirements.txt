@@ -11,14 +11,8 @@ proxy-tools==0.1.0
 pycairo==1.26.1
 PyGObject==3.48.2
 pynput==1.7.7
-PyQt5==5.15.10
-PyQt5-Qt5==5.15.2
-PyQt5-sip==12.13.0
-PyQtWebEngine==5.15.6
-PyQtWebEngine-Qt5==5.15.2
 python-xlib==0.33
 pywebview==5.1
-QtPy==2.4.1
 requests==2.32.3
 six==1.16.0
 toml==0.10.2
