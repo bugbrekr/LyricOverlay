@@ -35,6 +35,7 @@ class Player:
                 status = self._get(player, "PlaybackStatus")
                 if status == "Playing":
                     return player
+        return None
 
     def get_track_info(self, player=None):
         """Fetch the track title and artist."""
@@ -59,7 +60,7 @@ class Player:
         return round(position, 2)
 
 class LyricsFetcher:
-    """Fetch requested lyrics from LRCLIB and handles caching of said lyrics."""
+    """Fetch lyrics from LRCLIB and handle caching of returned lyrics."""
     def __init__(self, cache_folder):
         self.cache_folder = cache_folder
     def _hash_track(self, track_title, track_artist):
@@ -88,10 +89,10 @@ class LyricsFetcher:
         )
         except requests.exceptions.Timeout:
             print("timed out")
-            return None, None, False, 0
-        except requests.exceptions.RequestException:
-            print("exception")
-            return None, None, False, -1
+            return None, None, False, 408
+        except requests.exceptions.RequestException as e:
+            print("[CRITICAL]:", e)
+            return None, None, False, 400
         if not r.ok:
             print("not ok")
             return None, None, False, 500
@@ -99,17 +100,19 @@ class LyricsFetcher:
         if not tracks:
             print("not found")
             return None, None, False, 404
-        return (tracks[0]['syncedLyrics'], tracks[0]['plainLyrics'], True, 200)
+        return (tracks[0].get('syncedLyrics'), tracks[0].get('plainLyrics'), True, 200)
     def fetch_synced(self, track_title, track_artist):
         """Fetch synced lyrics data for a track."""
         lyrics = self._get_from_cache(self._hash_track(track_title, track_artist))
         if lyrics:
             if lyrics.get('synced_lyrics'):
-                return lyrics, True
+                return lyrics, True, 200
+            else:
+                return lyrics, False, 204
         search_term = track_title+" "+track_artist
-        lrc, plrc, res, _ = self._get_lrc(search_term)
+        lrc, plrc, res, code = self._get_lrc(search_term)
         if not res:
-            return None, False
+            return None, False, code
         lyrics_data = {
             "source": "LRCLIB",
             "track_title": track_title,
@@ -118,17 +121,26 @@ class LyricsFetcher:
             "plain_lyrics": plrc
         }
         self._cache_lyrics(self._hash_track(track_title, track_artist), lyrics_data)
-        return lyrics_data, True
+        if lyrics_data["synced_lyrics"] is None:
+            return lyrics_data, False, 204
+        else:
+            return lyrics_data, True, 200
     def fetch_synced_lyrics(self, track_title, track_artist):
         """Get synced lyrics object for a track."""
-        lrc, res = self.fetch_synced(track_title, track_artist)
+        lrc, res, code = self.fetch_synced(track_title, track_artist)
         if not res:
-            return None
+            # 200 - Synced lyrics fetched
+            # 204 - Only plain lyrics fetched
+            # 404 - No lyrics fetched
+            # 408 - Request timed out (no lyrics)
+            # 500 - Server returned non-200 response (no lyrics)
+            # 400 - Requests Error (critical) (obviously no lyrics)
+            return None, False, code
         return SyncedLyrics(
             lrc["synced_lyrics"],
             lrc["track_title"],
             lrc["track_artist"],
-        )
+        ), True, 200
 
 class SyncedLyrics:
     """Encapsulate the synced lyrics data in a nice class to use cool functions."""

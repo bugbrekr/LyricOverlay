@@ -59,7 +59,7 @@ class Overlay:
         self.window_shown = True
         self.player = helpers.Player()
         self.lyrics_fetcher = helpers.LyricsFetcher(LYRICS_CACHE_LOCATION)
-        self.current_lyrics = None
+        self.status = "idle"
         threading.Thread(target=self._init_hotkey_listener).start()
     def _init_hotkey_listener(self):
         def for_canonical_l(func):
@@ -108,49 +108,60 @@ class Overlay:
         self.win.show()
         self._apply_stylesheet()
         self.mainloop()
-    def _on_track_changed(self, track_info):
-        print("loading:",track_info)
+    def _on_idle(self):
+        print("idle")
+        self.status = "idle"
         self.win.evaluate_js("clear_lyrics()")
+    def _on_track_changed(self, track_info):
+        print("loading:", track_info)
+        self.win.evaluate_js("clear_lyrics()")
+        self.status = "loading"
     def _on_lyrics_failure(self, track_info):
         print("failed:", track_info)
+        self.status = "idle"
     def _on_loaded_lyrics(self, track_info, plain_lyrics):
+        print("applying:", track_info)
         encoded_lrc = base64.b64encode(bytes(plain_lyrics, "utf-8")).decode()
         self.win.evaluate_js(f"populate_lyrics('{encoded_lrc}')")
-        print("applying:", track_info)
+        self.status = "lrc_ready"
     def _on_lyric_change(self, lyric_index):
         self.win.evaluate_js(f"highlight_lyric({lyric_index})")
     def mainloop(self):
         """Handles continuous processes."""
         prev_track_info = ()
-        prev_lyric_index = [-1, 0]
+        prev_lyric_index = (-1, 0)
         while True:
             time.sleep(0.5)
             if not self.window_shown:
                 continue
             self._keep_window_in_screen()
+
             track_info = self.player.get_track_info()
-            if track_info is None:
-                continue
-            if prev_track_info != track_info:
-                prev_track_info = track_info
-                self._on_track_changed(track_info)
-                self.current_lyrics = self.lyrics_fetcher.fetch_synced_lyrics(
-                    track_info[0],
-                    track_info[1]
+            if track_info != prev_track_info:
+                if track_info is None:
+                    self._on_idle()
+                else:
+                    self._on_track_changed(track_info)
+                    lyrics, res, code = self.lyrics_fetcher.fetch_synced_lyrics(
+                        track_info[0],
+                        track_info[1]
+                    )
+                    if res is True:
+                        self._on_loaded_lyrics(track_info, lyrics.plain_lyrics)
+                    elif code == 204:
+                        # Synced lyrics not available.
+                        # TODO: Add fallback to plain lyrics.
+                        self._on_lyrics_failure(track_info)
+                    else:
+                        self._on_lyrics_failure(track_info) # Nothing is available.
+            prev_track_info = track_info
+            if self.status == "lrc_ready":
+                lyric_index = lyrics.get_current_lyric_index(
+                    self.player.get_track_position()
                 )
-                prev_lyric_index = [-1, 0]
-                if self.current_lyrics is None:
-                    self._on_lyrics_failure(track_info)
-                    continue
-                self._on_loaded_lyrics(track_info, self.current_lyrics.plain_lyrics)
-            if self.current_lyrics is None:
-                continue
-            lyric_index = self.current_lyrics.get_current_lyric_index(
-                self.player.get_track_position()
-            )
-            if prev_lyric_index[0] != lyric_index[0]:
+                if lyric_index != prev_lyric_index and lyric_index[1]:
+                    self._on_lyric_change(lyric_index[0] if lyric_index[1]>=0 else -1)
                 prev_lyric_index = lyric_index
-                self._on_lyric_change(lyric_index[0])
 
 overlay = Overlay(window)
 

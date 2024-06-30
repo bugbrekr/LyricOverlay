@@ -43,10 +43,13 @@
                     lyric.className = "future-lyric"
                 }
             });
+            if (index <= 0 ){
+                return
+            }
             smoothScrollTo(
                 document.body,
                 document.getElementById(index).getBoundingClientRect().y+window.scrollY-window.innerHeight/2, 
-                100 // milliseconds
+                130 // milliseconds
             )
         }
     </script>
