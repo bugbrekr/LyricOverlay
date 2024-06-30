@@ -1,7 +1,31 @@
 body {
-    background-color: rgba({{ ', '.join(background) }});
+    background-color: rgba({{ ', '.join(background_colour) }});
+    overflow: hidden;
+    scroll-behavior: smooth;
 }
 
-h1 {
-    color: rgba({{ ', '.join(text) }});
+.lyrics-box {
+    margin: auto;
+    width: 75%;
+    padding-bottom: calc(50vh);
+}
+
+.lyrics-box p {
+    color: rgba({{ ', '.join(text_colour) }});
+    font-family: {{ font_style }};
+    font-size: {{ font_size }};
+    position: relative;
+    padding-bottom: 0.5em;
+}
+
+.past-lyric {
+    opacity: {{ past_opacity }};
+}
+
+.future-lyric {
+    opacity: {{ future_opacity }};
+}
+
+::-webkit-scrollbar {
+    display: none;
 }

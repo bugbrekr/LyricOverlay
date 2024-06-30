@@ -43,7 +43,11 @@ class Player:
         if player is None:
             return None
         metadata = self._get(player, "Metadata")
-        return (str(metadata['xesam:title']), str(metadata['xesam:artist'][0]))
+        if metadata.get("xesam:artist") and len(metadata['xesam:artist'])>0:
+            artist = str(metadata['xesam:artist'][0])
+        else:
+            artist = ""
+        return (str(metadata['xesam:title']), artist)
 
     def get_track_position(self, player=None):
         """Fetch the track playback position."""
@@ -75,18 +79,27 @@ class LyricsFetcher:
         with open(cache_location+track_hash+".json", "w", encoding="utf-8") as f:
             f.write(json.dumps(data))
     def _get_lrc(self, search_term: str) -> Optional[str]:
-        r = requests.get(
+        try:
+            r = requests.get(
             LRCLIB_ROOT_URL+"/api/search",
             params={"q": search_term},
             headers={"User-Agent": "LYRIC_OVERLAY v0.x (https://github.com/bugbrekr/LyricOverlay)"},
-            timeout=5 # 5 seconds
+            timeout=3 # 5 seconds
         )
+        except requests.exceptions.Timeout:
+            print("timed out")
+            return None, None, False, 0
+        except requests.exceptions.RequestException:
+            print("exception")
+            return None, None, False, -1
         if not r.ok:
-            return
+            print("not ok")
+            return None, None, False, 500
         tracks = r.json()
         if not tracks:
-            return
-        return (tracks[0]['syncedLyrics'], tracks[0]['plainLyrics'])
+            print("not found")
+            return None, None, False, 404
+        return (tracks[0]['syncedLyrics'], tracks[0]['plainLyrics'], True, 200)
     def fetch_synced(self, track_title, track_artist):
         """Fetch synced lyrics data for a track."""
         lyrics = self._get_from_cache(self._hash_track(track_title, track_artist))
@@ -94,8 +107,8 @@ class LyricsFetcher:
             if lyrics.get('synced_lyrics'):
                 return lyrics, True
         search_term = track_title+" "+track_artist
-        lrc, plrc = self._get_lrc(search_term)
-        if not lrc:
+        lrc, plrc, res, _ = self._get_lrc(search_term)
+        if not res:
             return None, False
         lyrics_data = {
             "source": "LRCLIB",

@@ -9,6 +9,7 @@ Date: 27-06-2024
 import threading
 import time
 import os
+import base64
 import webview
 import toml
 from pynput import keyboard
@@ -42,11 +43,13 @@ window = webview.create_window(
     easy_drag=config["behaviour"]["allow_dragging"],
     focus=False,
     transparent=True,
-    background_color=config["theme"]["background"],
+    background_color=config["theme"]["background_colour"],
     draggable=False,
     zoomable=False,
-    width = WINDOW_GEOMETRY[0],
-    height = WINDOW_GEOMETRY[1]
+    width=WINDOW_GEOMETRY[0],
+    height=WINDOW_GEOMETRY[1],
+    x=SCREEN_SIZE[0]-WINDOW_GEOMETRY[0] if config["window"]["x"] == -1 else config["window"]["x"],
+    y=SCREEN_SIZE[1]-WINDOW_GEOMETRY[1] if config["window"]["y"] == -1 else config["window"]["y"]
 )
 
 class Overlay:
@@ -87,13 +90,17 @@ class Overlay:
         self.win.move(x, y)
     def _apply_stylesheet(self):
         _opacity = config["theme"]["opacity"]
-        _bg_rgb = helpers.hex_to_rgb(config["theme"]["background"])
-        background = _bg_rgb+(_opacity,)
-        text = helpers.hex_to_rgb(config["theme"]["text"])
+        _bg_rgb = helpers.hex_to_rgb(config["theme"]["background_colour"])
+        background_colour = _bg_rgb+(_opacity,)
+        text_colour = helpers.hex_to_rgb(config["theme"]["text_colour"])
         stylesheet = helpers.render_template(
             "content/main.css",
-            background=[str(i) for i in background],
-            text=[str(i) for i in text]
+            background_colour=[str(i) for i in background_colour],
+            text_colour=[str(i) for i in text_colour],
+            font_style=config["theme"]["font_style"],
+            font_size=config["theme"]["font_size"],
+            past_opacity=config["theme"]["past_opacity"],
+            future_opacity=config["theme"]["future_opacity"]
         )
         self.win.load_css(stylesheet)
     def init(self):
@@ -102,9 +109,16 @@ class Overlay:
         self._apply_stylesheet()
         self.mainloop()
     def _on_track_changed(self, track_info):
-        print(track_info)
+        print("loading:",track_info)
+        self.win.evaluate_js("clear_lyrics()")
+    def _on_lyrics_failure(self, track_info):
+        print("failed:", track_info)
+    def _on_loaded_lyrics(self, track_info, plain_lyrics):
+        encoded_lrc = base64.b64encode(bytes(plain_lyrics, "utf-8")).decode()
+        self.win.evaluate_js(f"populate_lyrics('{encoded_lrc}')")
+        print("applying:", track_info)
     def _on_lyric_change(self, lyric_index):
-        print(self.current_lyrics.get_lyric(lyric_index))
+        self.win.evaluate_js(f"highlight_lyric({lyric_index})")
     def mainloop(self):
         """Handles continuous processes."""
         prev_track_info = ()
@@ -125,6 +139,12 @@ class Overlay:
                     track_info[1]
                 )
                 prev_lyric_index = [-1, 0]
+                if self.current_lyrics is None:
+                    self._on_lyrics_failure(track_info)
+                    continue
+                self._on_loaded_lyrics(track_info, self.current_lyrics.plain_lyrics)
+            if self.current_lyrics is None:
+                continue
             lyric_index = self.current_lyrics.get_current_lyric_index(
                 self.player.get_track_position()
             )
@@ -149,4 +169,4 @@ windowEventHandler = WindowEventHandler()
 
 window.events.minimized += windowEventHandler.on_minimized
 window.events.closing += windowEventHandler.on_closing
-webview.start(overlay.init)
+webview.start(overlay.init, gui="gtk")

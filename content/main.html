@@ -1,5 +1,53 @@
 <html>
     <body>
-        <h1>Hello, World!</h1>
+        <div class="lyrics-box" id="lyrics_box">
+        </div>
     </body>
+    <script>
+        var lyrics_box = document.getElementById("lyrics_box")
+        function b64DecodeUnicode(str) {
+            // Credit: stackoverflow/1214800/brandonscript
+            // Going backwards: from bytestream, to percent-encoding, to original string.
+            return decodeURIComponent(atob(str).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+        }
+        function populate_lyrics(encoded_plain_lrc){
+            lyric_list = b64DecodeUnicode(encoded_plain_lrc).split("\n")
+            for (let i=0; i<lyric_list.length; i++){
+                lyric_element = document.createElement("p")
+                lyric_element.id = i
+                lyric_element.innerHTML = lyric_list[i]
+                lyrics_box.appendChild(lyric_element)
+            }
+        }
+        function clear_lyrics(){
+            lyrics_box.innerHTML = ""
+        }
+        function smoothScrollTo(element, to, duration) {
+            if (duration <= 0) return;
+            var difference = to - element.scrollTop;
+            var perTick = difference / duration * 10;
+
+            setTimeout(function() {
+                element.scrollTop = element.scrollTop + perTick;
+                if (element.scrollTop == to) return;
+                smoothScrollTo(element, to, duration - 10);
+            }, 10);
+        }
+        function highlight_lyric(index){
+            lyrics_box.childNodes.forEach((lyric, i) => {
+                if (i <= index){
+                    lyric.className = "past-lyric"
+                } else {
+                    lyric.className = "future-lyric"
+                }
+            });
+            smoothScrollTo(
+                document.body,
+                document.getElementById(index).getBoundingClientRect().y+window.scrollY-window.innerHeight/2, 
+                100 // milliseconds
+            )
+        }
+    </script>
 </html>
