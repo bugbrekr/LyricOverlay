@@ -143,9 +143,11 @@ class Overlay:
             track_info = self.player.get_track_info()
             if track_info != prev_track_info:
                 if track_info is None:
+                    # Show idle notice.
                     self._on_idle()
                 else:
                     self._on_track_changed(track_info)
+                    # TODO: Show loading notice.
                     lyrics, res, code = self.lyrics_fetcher.fetch_synced_lyrics(
                         track_info[0],
                         track_info[1]
@@ -154,10 +156,12 @@ class Overlay:
                         self._on_loaded_lyrics(track_info, lyrics.plain_lyrics)
                     elif code == 204:
                         # Synced lyrics not available.
-                        # TODO: Add fallback to plain lyrics.
+                        # TODO: Add fallback to plain lyrics and show notice.
                         self._on_lyrics_failure(track_info)
                     else:
-                        self._on_lyrics_failure(track_info) # Nothing is available.
+                        # Nothing is available.
+                        # TODO: Show error notice.
+                        self._on_lyrics_failure(track_info)
             prev_track_info = track_info
             if self.status == "lrc_ready":
                 lyric_index = lyrics.get_current_lyric_index(

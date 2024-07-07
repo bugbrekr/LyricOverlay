@@ -20,6 +20,7 @@
                 lyric_element.innerHTML = lyric_list[i]
                 lyrics_box.appendChild(lyric_element)
             }
+            smoothScrollTo(document.body, 0, 130)
         }
         function clear_lyrics(){
             lyrics_box.innerHTML = ""
@@ -44,6 +45,7 @@
                 }
             });
             if (index <= 0 ){
+                smoothScrollTo(document.body, 0, 130)
                 return
             }
             smoothScrollTo(
