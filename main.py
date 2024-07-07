@@ -57,6 +57,8 @@ class Overlay:
     """This class handles the overlay window."""
     _snap_to_corner_threshold_percent = config["behaviour"]["snap_to_corner_threshold_percent"]
     SNAP_TO_CORNER_THRESHOLD = (sum(SCREEN_SIZE)/2)*_snap_to_corner_threshold_percent/100
+    SNAP_TO_HOR_EDGE_THREDHOLD = SCREEN_SIZE[0]*_snap_to_corner_threshold_percent/100
+    SNAP_TO_VER_EDGE_THREDHOLD = SCREEN_SIZE[1]*_snap_to_corner_threshold_percent/100
     def __init__(self, win:webview.Window):
         self.win = win
         self.window_shown = True
@@ -92,6 +94,14 @@ class Overlay:
             self.win.move(SCREEN_SIZE[0]-self.win.width, SCREEN_SIZE[1]-self.win.height)
         elif math.dist((0, SCREEN_SIZE[1]), swc) <= self.SNAP_TO_CORNER_THRESHOLD: # SW
             self.win.move(0, SCREEN_SIZE[1]-self.win.height)
+        elif abs(x) <= self.SNAP_TO_HOR_EDGE_THREDHOLD: # EAST
+            self.win.move(0, y)
+        elif abs(SCREEN_SIZE[0]-(x+self.win.width)) <= self.SNAP_TO_HOR_EDGE_THREDHOLD: # WEST
+            self.win.move(SCREEN_SIZE[0]-self.win.width, y)
+        elif abs(y) <= self.SNAP_TO_VER_EDGE_THREDHOLD: # NORTH
+            self.win.move(x, 0)
+        elif abs(SCREEN_SIZE[1]-(y+self.win.height)) <= self.SNAP_TO_VER_EDGE_THREDHOLD: # SOUTH
+            self.win.move(x, SCREEN_SIZE[1]-self.win.height)
     def _apply_stylesheet(self):
         _opacity = config["theme"]["opacity"]
         _bg_rgb = helpers.hex_to_rgb(config["theme"]["background_colour"])
