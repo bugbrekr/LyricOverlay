@@ -125,8 +125,8 @@ class Overlay:
     def _on_idle(self):
         self.status = "idle"
         self.win.evaluate_js("clear_lyrics(); hide_notice();")
-    def _on_track_changed(self, track_info):
-        self._show_notice(f"Loading '{track_info[0]}'...")
+    def _on_track_changed(self):
+        self._show_notice("Loading...")
         self.win.evaluate_js("clear_lyrics()")
         self.status = "loading"
     def _on_lyrics_failure(self, code):
@@ -165,7 +165,7 @@ class Overlay:
                     # Show idle notice.
                     self._on_idle()
                 else:
-                    self._on_track_changed(track_info)
+                    self._on_track_changed()
                     lyrics, res, code = self.lyrics_fetcher.fetch_synced_lyrics(
                         track_info[0],
                         track_info[1]
