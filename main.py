@@ -36,7 +36,7 @@ def _get_adjusted_window_geometry():
 
 WINDOW_GEOMETRY = _get_adjusted_window_geometry()
 window = webview.create_window(
-    'LyricOverlay',
+    "LyricOverlay",
     html=HTML_CONTENT,
     resizable=False,
     on_top=True,
@@ -123,23 +123,32 @@ class Overlay:
         self._apply_stylesheet()
         self.mainloop()
     def _on_idle(self):
-        print("idle")
         self.status = "idle"
-        self.win.evaluate_js("clear_lyrics()")
+        self.win.evaluate_js("clear_lyrics(); hide_notice();")
     def _on_track_changed(self, track_info):
-        print("loading:", track_info)
+        self._show_notice(f"Loading '{track_info[0]}'...")
         self.win.evaluate_js("clear_lyrics()")
         self.status = "loading"
-    def _on_lyrics_failure(self, track_info):
-        print("failed:", track_info)
+    def _on_lyrics_failure(self, code):
         self.status = "idle"
-    def _on_loaded_lyrics(self, track_info, plain_lyrics):
-        print("applying:", track_info)
+        if code == 404:
+            self._show_notice("Sorry, lyrics are unavailable for this track.")
+        elif code == 206:
+            self._show_notice("No lyrics exist for this track.")
+        elif code == 408:
+            self._show_notice("Error: Request timed out.")
+        elif code == 400:
+            self._show_notice("ERROR: An unkown error has occurred.")
+        elif code == 500:
+            self._show_notice("Error: LRCLIB has returned a non-200 response.")
+    def _on_lyrics_loaded(self, plain_lyrics):
         encoded_lrc = base64.b64encode(bytes(plain_lyrics, "utf-8")).decode()
-        self.win.evaluate_js(f"populate_lyrics('{encoded_lrc}')")
+        self.win.evaluate_js(f"populate_lyrics(\"{encoded_lrc}\")")
         self.status = "lrc_ready"
-    def _on_lyric_change(self, lyric_index):
+    def _on_position_change(self, lyric_index):
         self.win.evaluate_js(f"highlight_lyric({lyric_index})")
+    def _show_notice(self, notice):
+        self.win.evaluate_js(f"show_notice(\"{notice}\")")
     def mainloop(self):
         """Handles continuous processes."""
         prev_track_info = ()
@@ -157,28 +166,25 @@ class Overlay:
                     self._on_idle()
                 else:
                     self._on_track_changed(track_info)
-                    # TODO: Show loading notice.
                     lyrics, res, code = self.lyrics_fetcher.fetch_synced_lyrics(
                         track_info[0],
                         track_info[1]
                     )
                     if res is True:
-                        self._on_loaded_lyrics(track_info, lyrics.plain_lyrics)
+                        self._on_lyrics_loaded(lyrics.plain_lyrics)
                     elif code == 204:
                         # Synced lyrics not available.
                         # TODO: Add fallback to plain lyrics and show notice.
-                        self._on_lyrics_failure(track_info)
+                        self._on_lyrics_failure(404)
                     else:
-                        # Nothing is available.
-                        # TODO: Show error notice.
-                        self._on_lyrics_failure(track_info)
+                        self._on_lyrics_failure(code)
             prev_track_info = track_info
             if self.status == "lrc_ready":
                 lyric_index = lyrics.get_current_lyric_index(
                     self.player.get_track_position()
                 )
                 if lyric_index != prev_lyric_index and lyric_index[1]:
-                    self._on_lyric_change(lyric_index[0] if lyric_index[1]>=0 else -1)
+                    self._on_position_change(lyric_index[0] if lyric_index[1]>=0 else -1)
                 prev_lyric_index = lyric_index
 
 overlay = Overlay(window)

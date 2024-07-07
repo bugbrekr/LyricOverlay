@@ -1,18 +1,20 @@
 <html>
     <body>
-        <div class="lyrics-box" id="lyrics_box">
-        </div>
+        <div class="notice" id="notice_box"></div>
+        <div class="lyrics-box" id="lyrics_box"></div>
     </body>
     <script>
         var lyrics_box = document.getElementById("lyrics_box")
+        var notice_box = document.getElementById("notice_box")
+        // Credit: stackoverflow/user/1214800/brandonscript
         function b64DecodeUnicode(str) {
-            // Credit: stackoverflow/1214800/brandonscript
             // Going backwards: from bytestream, to percent-encoding, to original string.
             return decodeURIComponent(atob(str).split('').map(function(c) {
                 return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
             }).join(''));
         }
         function populate_lyrics(encoded_plain_lrc){
+            hide_notice()
             lyric_list = b64DecodeUnicode(encoded_plain_lrc).split("\n")
             for (let i=0; i<lyric_list.length; i++){
                 lyric_element = document.createElement("p")
@@ -54,5 +56,13 @@
                 130 // milliseconds
             )
         }
+        function show_notice(notice){
+            notice_box.innerHTML = notice
+            notice_box.hidden = false
+        }
+        function hide_notice(){
+            notice_box.hidden = true
+        }
+        hide_notice()
     </script>
 </html>

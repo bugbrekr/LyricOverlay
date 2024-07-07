@@ -24,14 +24,14 @@ class Player:
         self.bus = dbus.SessionBus()
     def _get(self, player, key):
         return player.Get(
-            'org.mpris.MediaPlayer2.Player',
+            "org.mpris.MediaPlayer2.Player",
             key,
-            dbus_interface='org.freedesktop.DBus.Properties'
+            dbus_interface="org.freedesktop.DBus.Properties"
         )
     def _get_playing_player(self):
         for service in self.bus.list_names():
-            if service.startswith('org.mpris.MediaPlayer2.'):
-                player = dbus.SessionBus().get_object(service, '/org/mpris/MediaPlayer2')
+            if service.startswith("org.mpris.MediaPlayer2."):
+                player = dbus.SessionBus().get_object(service, "/org/mpris/MediaPlayer2")
                 status = self._get(player, "PlaybackStatus")
                 if status == "Playing":
                     return player
@@ -44,11 +44,11 @@ class Player:
         if player is None:
             return None
         metadata = self._get(player, "Metadata")
-        if metadata.get("xesam:artist") and len(metadata['xesam:artist'])>0:
-            artist = str(metadata['xesam:artist'][0])
+        if metadata.get("xesam:artist") and len(metadata["xesam:artist"])>0:
+            artist = str(metadata["xesam:artist"][0])
         else:
             artist = ""
-        return (str(metadata['xesam:title']), artist)
+        return (str(metadata["xesam:title"]), artist)
 
     def get_track_position(self, player=None):
         """Fetch the track playback position."""
@@ -79,6 +79,12 @@ class LyricsFetcher:
             os.mkdir(cache_location)
         with open(cache_location+track_hash+".json", "w", encoding="utf-8") as f:
             f.write(json.dumps(data))
+    def _remove_from_cache(self, track_hash):
+        cache_location = self.cache_folder+"/lyrics/"
+        if os.path.isdir(cache_location) is False:
+            os.mkdir(cache_location)
+            return
+        os.remove(cache_location+track_hash+".json")
     def _get_lrc(self, search_term: str) -> Optional[str]:
         try:
             r = requests.get(
@@ -88,54 +94,76 @@ class LyricsFetcher:
             timeout=3 # 5 seconds
         )
         except requests.exceptions.Timeout:
-            print("timed out")
-            return None, None, False, 408
+            print("[CRITICAL]: Request timed out.")
+            return None, None, None, False, 408
         except requests.exceptions.RequestException as e:
             print("[CRITICAL]:", e)
-            return None, None, False, 400
+            return None, None, None, False, 400
         if not r.ok:
-            print("not ok")
-            return None, None, False, 500
+            print("[CRITICAL]: {r.ok}, {r.text}")
+            return None, None, None, False, 500
         tracks = r.json()
         if not tracks:
-            print("not found")
-            return None, None, False, 404
-        return (tracks[0].get('syncedLyrics'), tracks[0].get('plainLyrics'), True, 200)
-    def fetch_synced(self, track_title, track_artist):
+            return None, None, None, False, 404
+        top_track = tracks[0]
+        return (
+            top_track.get("syncedLyrics"),
+            top_track.get("plainLyrics"),
+            top_track["instrumental"],
+            True,
+            200
+        )
+    def fetch_lrc(self, track_title, track_artist):
         """Fetch synced lyrics data for a track."""
-        lyrics = self._get_from_cache(self._hash_track(track_title, track_artist))
+        _track_hash = self._hash_track(track_title, track_artist)
+        lyrics = self._get_from_cache(_track_hash)
         if lyrics:
-            if lyrics.get('synced_lyrics'):
+            if lyrics.get("instrumental") is True:
+                return lyrics, True, 204
+            elif lyrics.get("synced_lyrics") is not None:
                 return lyrics, True, 200
-            else:
-                return lyrics, False, 204
+            elif lyrics.get("synced_lyrics") is None:
+                self._remove_from_cache(_track_hash) # bad cache
         search_term = track_title+" "+track_artist
-        lrc, plrc, res, code = self._get_lrc(search_term)
+        lrc, plrc, instrumental, res, code = self._get_lrc(search_term)
         if not res:
             return None, False, code
         lyrics_data = {
             "source": "LRCLIB",
             "track_title": track_title,
             "track_artist": track_artist,
+            "instrumental": instrumental,
             "synced_lyrics": lrc,
             "plain_lyrics": plrc
         }
-        self._cache_lyrics(self._hash_track(track_title, track_artist), lyrics_data)
-        if lyrics_data["synced_lyrics"] is None:
-            return lyrics_data, False, 204
-        else:
+        if instrumental:
+            self._cache_lyrics(self._hash_track(track_title, track_artist), lyrics_data)
+            return lyrics_data, True, 204
+        elif lrc is not None:
+            self._cache_lyrics(self._hash_track(track_title, track_artist), lyrics_data)
             return lyrics_data, True, 200
+        elif lrc is None and plrc is not None:
+            # don't cache. synced lyrics could be available later.
+            return lyrics_data, True, 206
     def fetch_synced_lyrics(self, track_title, track_artist):
-        """Get synced lyrics object for a track."""
-        lrc, res, code = self.fetch_synced(track_title, track_artist)
+        """
+        Get synced lyrics object for a track.
+        Returned status codes:
+            200 - Synced lyrics fetched (plain lyrics possibly unavailable)
+            206 - Only plain lyrics fetched
+            204 - No lyrics available (instrumental)
+            404 - No lyrics found
+            408 - Request timed out (no lyrics)
+            400 - Requests Error (critical) (obviously no lyrics)
+            500 - Server returned non-200 response (no lyrics)
+        """
+        lrc, res, code = self.fetch_lrc(track_title, track_artist)
         if not res:
-            # 200 - Synced lyrics fetched
-            # 204 - Only plain lyrics fetched
-            # 404 - No lyrics fetched
-            # 408 - Request timed out (no lyrics)
-            # 500 - Server returned non-200 response (no lyrics)
-            # 400 - Requests Error (critical) (obviously no lyrics)
             return None, False, code
+        if code == 206:
+            return lrc["plain_lyrics"], False, 206
+        elif code == 204:
+            return None, False, 206
         return SyncedLyrics(
             lrc["synced_lyrics"],
             lrc["track_title"],
@@ -153,7 +181,7 @@ class SyncedLyrics:
         if len(raw_lyric) == 8+decimal_precision:
             lyric = ""
         else:
-            if raw_lyric[8+decimal_precision] == ' ':
+            if raw_lyric[8+decimal_precision] == " ":
                 lyric = raw_lyric[9+decimal_precision:]
             else:
                 lyric = raw_lyric[8+decimal_precision:]
