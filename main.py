@@ -9,6 +9,7 @@ Date: 27-06-2024
 import threading
 import time
 import os
+import math
 import base64
 import webview
 import toml
@@ -54,6 +55,8 @@ window = webview.create_window(
 
 class Overlay:
     """This class handles the overlay window."""
+    _snap_to_corner_threshold_percent = config["behaviour"]["snap_to_corner_threshold_percent"]
+    SNAP_TO_CORNER_THRESHOLD = (sum(SCREEN_SIZE)/2)*_snap_to_corner_threshold_percent/100
     def __init__(self, win:webview.Window):
         self.win = win
         self.window_shown = True
@@ -77,17 +80,18 @@ class Overlay:
         else:
             self.win.show()
         self.window_shown = not self.window_shown
-    def _keep_window_in_screen(self):
+    def _snap_window_to_corner(self):
         x, y = self.win.x, self.win.y
-        if x+self.win.width > SCREEN_SIZE[0]:
-            x = SCREEN_SIZE[0]-self.win.width
-        elif x < 0:
-            x = 0
-        if y+self.win.height > SCREEN_SIZE[1]:
-            y = SCREEN_SIZE[1]-self.win.height
-        elif y < 0:
-            y = 0
-        self.win.move(x, y)
+        nwc, nec = (x,y), (x+self.win.width, y)
+        swc, sec = (x, y+self.win.height), (x+self.win.width, y+self.win.height)
+        if math.dist((0, 0), nwc) <= self.SNAP_TO_CORNER_THRESHOLD: # NW
+            self.win.move(0, 0)
+        elif math.dist((SCREEN_SIZE[0], 0), nec) <= self.SNAP_TO_CORNER_THRESHOLD: # NE
+            self.win.move(SCREEN_SIZE[0]-self.win.width, 0)
+        elif math.dist(SCREEN_SIZE, sec) <= self.SNAP_TO_CORNER_THRESHOLD: # SE
+            self.win.move(SCREEN_SIZE[0]-self.win.width, SCREEN_SIZE[1]-self.win.height)
+        elif math.dist((0, SCREEN_SIZE[1]), swc) <= self.SNAP_TO_CORNER_THRESHOLD: # SW
+            self.win.move(0, SCREEN_SIZE[1]-self.win.height)
     def _apply_stylesheet(self):
         _opacity = config["theme"]["opacity"]
         _bg_rgb = helpers.hex_to_rgb(config["theme"]["background_colour"])
@@ -134,7 +138,7 @@ class Overlay:
             time.sleep(0.5)
             if not self.window_shown:
                 continue
-            self._keep_window_in_screen()
+            self._snap_window_to_corner()
 
             track_info = self.player.get_track_info()
             if track_info != prev_track_info:
