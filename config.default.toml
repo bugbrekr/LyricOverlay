@@ -1,0 +1,31 @@
+[window]
+width_percent = 20 # width with respect to the screen
+height_percent = 55 # height with respect to the screen
+screen_selector = 0 # for multi-monitor setup (buggy!)
+# initial window placement (-1 for extreme (right or bottom) end)
+x = -1
+y = 0
+
+[theme]
+opacity = 85 # in percent
+background_colour = "#000000" # only hex-codes work for now
+text_colour = "#FFFFFF"
+font_size = 22
+font_style = "Consolas" # limited font selection for now
+past_opacity = 100 # in percent
+future_opacity = 50 # in percent
+
+[keybinds]
+# Use '<cmd>' for the Super (or Windows) key
+show_hide = "<ctrl>+<cmd>+k"
+
+[behaviour]
+allow_dragging = true
+allow_minimise = false
+allow_maximise = false
+allow_closing = false
+# automatically snaps to the corner when in the specified threshold
+snap_to_corner_threshold_percent = 2.5
+
+[other]
+cache_location = "~/.cache/LyricOverlay/"
