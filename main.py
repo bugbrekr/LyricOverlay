@@ -9,6 +9,9 @@ Date: 27-06-2024
 import threading
 import time
 import os
+import sys
+import shutil
+import platform
 import math
 import base64
 import webview
@@ -16,16 +19,34 @@ import toml
 from pynput import keyboard
 import helpers
 
-config = toml.load("config.toml")
+if getattr(sys, 'frozen', False):
+    # pylint: disable=protected-access
+    CWD = sys._MEIPASS
+else:
+    CWD = os.getcwd()
+
+if platform.system() == "Linux":
+    if not os.path.exists(os.path.expanduser("~/.config/LyricOverlay.toml")):
+        print("creating config.toml")
+        shutil.copyfile(
+            os.path.join(CWD, "config.default.toml"),
+            os.path.expanduser("~/.config/LyricOverlay.toml")
+        )
+    config = toml.load(os.path.expanduser("~/.config/LyricOverlay.toml"))
+else:
+    raise NotImplementedError(f"{platform.system()} is not supported!")
 KEYBINDS_SHOW_HIDE = config["keybinds"]["show_hide"]
 SCREEN_SELECTOR = config["window"]["screen_selector"]
 
 SCREEN_SIZE = webview.screens[SCREEN_SELECTOR].width, webview.screens[SCREEN_SELECTOR].height
 
-LYRICS_CACHE_LOCATION = os.path.expanduser(config["lyrics"]["cache_location"])
+if platform.system() == "Linux":
+    LYRICS_CACHE_LOCATION = os.path.expanduser(config["other"]["cache_location"])
+else:
+    raise NotImplementedError(f"{platform.system()} is not supported!")
 os.makedirs(LYRICS_CACHE_LOCATION, exist_ok=True)
 
-with open("content/main.html", encoding="utf-8") as f:
+with open(os.path.join(CWD, "content/main.html"), encoding="utf-8") as f:
     HTML_CONTENT = f.read()
 
 def _get_adjusted_window_geometry():
@@ -103,18 +124,18 @@ class Overlay:
         elif abs(SCREEN_SIZE[1]-(y+self.win.height)) <= self.SNAP_TO_VER_EDGE_THREDHOLD: # SOUTH
             self.win.move(x, SCREEN_SIZE[1]-self.win.height)
     def _apply_stylesheet(self):
-        _opacity = config["theme"]["opacity"]
+        _opacity = config["theme"]["opacity"]/100
         _bg_rgb = helpers.hex_to_rgb(config["theme"]["background_colour"])
         background_colour = _bg_rgb+(_opacity,)
         text_colour = helpers.hex_to_rgb(config["theme"]["text_colour"])
         stylesheet = helpers.render_template(
-            "content/main.css",
+            os.path.join(CWD, "content/main.css"),
             background_colour=[str(i) for i in background_colour],
             text_colour=[str(i) for i in text_colour],
             font_style=config["theme"]["font_style"],
             font_size=config["theme"]["font_size"],
-            past_opacity=config["theme"]["past_opacity"],
-            future_opacity=config["theme"]["future_opacity"]
+            past_opacity=config["theme"]["past_opacity"]/100,
+            future_opacity=config["theme"]["future_opacity"]/100
         )
         self.win.load_css(stylesheet)
     def init(self):
@@ -174,7 +195,6 @@ class Overlay:
                         self._on_lyrics_loaded(lyrics.plain_lyrics)
                     elif code == 204:
                         # Synced lyrics not available.
-                        # TODO: Add fallback to plain lyrics and show notice.
                         self._on_lyrics_failure(404)
                     else:
                         self._on_lyrics_failure(code)
