@@ -10,7 +10,6 @@ Date: 27-06-2024
 import os
 import json
 import re
-from typing import Optional
 import hashlib
 import dbus
 import requests
