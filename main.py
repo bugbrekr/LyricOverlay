@@ -26,13 +26,12 @@ else:
     CWD = os.getcwd()
 
 if platform.system() == "Linux":
-    if not os.path.exists(os.path.expanduser("~/.config/LyricOverlay.toml")):
-        print("creating config.toml")
+    if not os.path.exists(os.path.join(os.path.expanduser("~/.config/"), "LyricOverlay.toml")):
         shutil.copyfile(
             os.path.join(CWD, "config.default.toml"),
-            os.path.expanduser("~/.config/LyricOverlay.toml")
+            os.path.join(os.path.expanduser("~/.config/"), "LyricOverlay.toml")
         )
-    config = toml.load(os.path.expanduser("~/.config/LyricOverlay.toml"))
+    config = toml.load(os.path.join(os.path.expanduser("~/.config/"), "LyricOverlay.toml"))
 else:
     raise NotImplementedError(f"{platform.system()} is not supported!")
 KEYBINDS_SHOW_HIDE = config["keybinds"]["show_hide"]
@@ -45,6 +44,8 @@ if platform.system() == "Linux":
 else:
     raise NotImplementedError(f"{platform.system()} is not supported!")
 os.makedirs(LYRICS_CACHE_LOCATION, exist_ok=True)
+
+ACCEPTABLE_DURATION_DIFFERENCE = config["other"].get("acceptable_duration_difference")
 
 with open(os.path.join(CWD, "content/main.html"), encoding="utf-8") as f:
     HTML_CONTENT = f.read()
@@ -84,7 +85,10 @@ class Overlay:
         self.win = win
         self.window_shown = True
         self.player = helpers.Player()
-        self.lyrics_fetcher = helpers.LyricsFetcher(LYRICS_CACHE_LOCATION)
+        self.lyrics_fetcher = helpers.LyricsFetcher(
+            LYRICS_CACHE_LOCATION,
+            ACCEPTABLE_DURATION_DIFFERENCE
+        )
         self.status = "idle"
         threading.Thread(target=self._init_hotkey_listener).start()
     def _init_hotkey_listener(self):
@@ -177,6 +181,9 @@ class Overlay:
         while True:
             time.sleep(0.5)
             if not self.window_shown:
+                prev_track_info = ()
+                prev_lyric_index = (-1, 0)
+                self._on_idle()
                 continue
             self._snap_window_to_corner()
 
@@ -189,7 +196,8 @@ class Overlay:
                     self._on_track_changed()
                     lyrics, res, code = self.lyrics_fetcher.fetch_synced_lyrics(
                         track_info[0],
-                        track_info[1]
+                        track_info[1],
+                        track_info[2]
                     )
                     if res is True:
                         self._on_lyrics_loaded(lyrics.plain_lyrics)
