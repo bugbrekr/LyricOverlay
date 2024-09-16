@@ -208,8 +208,11 @@ class Overlay:
                         self._on_lyrics_failure(code)
             prev_track_info = track_info
             if self.status == "lrc_ready":
+                pos = self.player.get_track_position()
+                if not pos:
+                    self._show_notice("Error while accessing media player status.")
                 lyric_index = lyrics.get_current_lyric_index(
-                    self.player.get_track_position()
+                    pos
                 )
                 if lyric_index != prev_lyric_index and lyric_index[1]:
                     self._on_position_change(lyric_index[0] if lyric_index[1]>=0 else -1)
