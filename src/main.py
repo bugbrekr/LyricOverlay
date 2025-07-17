@@ -57,23 +57,6 @@ def _get_adjusted_window_geometry():
     return w, h
 
 WINDOW_GEOMETRY = _get_adjusted_window_geometry()
-window = webview.create_window(
-    "LyricOverlay",
-    html=HTML_CONTENT,
-    resizable=False,
-    on_top=True,
-    frameless=True,
-    easy_drag=config["behaviour"].get("allow_dragging", True),
-    focus=False,
-    transparent=True,
-    background_color=config["theme"].get("background_colour", "#000000"),
-    draggable=False,
-    zoomable=False,
-    width=WINDOW_GEOMETRY[0],
-    height=WINDOW_GEOMETRY[1],
-    x=SCREEN_SIZE[0]-WINDOW_GEOMETRY[0] if config["window"].get("x", -1) == -1 else config["window"].get("x", -1),
-    y=SCREEN_SIZE[1]-WINDOW_GEOMETRY[1] if config["window"].get("y", 0) == -1 else config["window"].get("y", 0)
-)
 
 class Overlay:
     """This class handles the overlay window."""
@@ -218,21 +201,46 @@ class Overlay:
                     self._on_position_change(lyric_index[0] if lyric_index[1]>=0 else -1)
                 prev_lyric_index = lyric_index
 
-overlay = Overlay(window)
-
 class WindowEventHandler:
     """Class of all functions that handle window events."""
+    def __init__(self, window):
+        self.window = window
     def on_minimized(self):
         """Handle window minimize"""
         if not config["behaviour"].get("allow_minimise", False):
-            window.restore()
+            self.window.restore()
     def on_closing(self):
         """Handle window closing"""
         if not config["behaviour"].get("allow_closing", False):
             return False
 
-windowEventHandler = WindowEventHandler()
+def main():
 
-window.events.minimized += windowEventHandler.on_minimized
-window.events.closing += windowEventHandler.on_closing
-webview.start(overlay.init, gui="gtk")
+    window = webview.create_window(
+        "LyricOverlay",
+        html=HTML_CONTENT,
+        resizable=False,
+        on_top=True,
+        frameless=True,
+        easy_drag=config["behaviour"].get("allow_dragging", True),
+        focus=False,
+        transparent=True,
+        background_color=config["theme"].get("background_colour", "#000000"),
+        draggable=False,
+        zoomable=False,
+        width=WINDOW_GEOMETRY[0],
+        height=WINDOW_GEOMETRY[1],
+        x=SCREEN_SIZE[0]-WINDOW_GEOMETRY[0] if config["window"].get("x", -1) == -1 else config["window"].get("x", -1),
+        y=SCREEN_SIZE[1]-WINDOW_GEOMETRY[1] if config["window"].get("y", 0) == -1 else config["window"].get("y", 0)
+    )
+
+    overlay = Overlay(window)
+
+    windowEventHandler = WindowEventHandler(window)
+
+    window.events.minimized += windowEventHandler.on_minimized
+    window.events.closing += windowEventHandler.on_closing
+    webview.start(overlay.init, gui="gtk")
+
+if __name__ == "__main__":
+    main()
