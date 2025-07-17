@@ -18,6 +18,7 @@ import webview
 import toml
 from pynput import keyboard
 import helpers
+from importlib import resources
 
 if getattr(sys, 'frozen', False):
     # pylint: disable=protected-access
@@ -26,12 +27,13 @@ else:
     CWD = os.getcwd()
 
 if platform.system() == "Linux":
-    if not os.path.exists(os.path.join(os.path.expanduser("~/.config/"), "LyricOverlay.toml")):
-        shutil.copyfile(
-            os.path.join(CWD, "config.default.toml"),
-            os.path.join(os.path.expanduser("~/.config/"), "LyricOverlay.toml")
-        )
-    config = toml.load(os.path.join(os.path.expanduser("~/.config/"), "LyricOverlay.toml"))
+    config_dir = os.path.expanduser("~/.config/")
+    if not os.path.exists(os.path.join(config_dir, "LyricOverlay.toml")):
+        with resources.files("lyric_overlay").joinpath("config.default.toml").open() as src:
+            os.makedirs(config_dir, exist_ok=True)  # Create .config dir if it doesn't exist
+            with open(os.path.join(config_dir, "LyricOverlay.toml"), 'wb') as dst:
+                shutil.copyfileobj(src, dst)
+    config = toml.load(os.path.join(config_dir, "LyricOverlay.toml"))
 else:
     raise NotImplementedError(f"{platform.system()} is not supported!")
 KEYBINDS_SHOW_HIDE = config["keybinds"].get("show_hide", "<ctrl>+<cmd>+k")
@@ -47,7 +49,7 @@ os.makedirs(LYRICS_CACHE_LOCATION, exist_ok=True)
 
 ACCEPTABLE_DURATION_DIFFERENCE = config["other"].get("acceptable_duration_difference", 1)
 
-with open(os.path.join(CWD, "content/main.html"), encoding="utf-8") as f:
+with resources.files("lyric_overlay.content").joinpath("main.html").open(encoding="utf-8") as f:
     HTML_CONTENT = f.read()
 
 def _get_adjusted_window_geometry():
@@ -116,7 +118,7 @@ class Overlay:
         background_colour = _bg_rgb+(_opacity,)
         text_colour = helpers.hex_to_rgb(config["theme"].get("text_colour", "#FFFFFF"))
         stylesheet = helpers.render_template(
-            os.path.join(CWD, "content/main.css"),
+            resources.files("lyric_overlay.content").joinpath("main.css"),
             background_colour=[str(i) for i in background_colour],
             text_colour=[str(i) for i in text_colour],
             font_style=config["theme"].get("font_style", "Consolas"),

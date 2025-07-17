@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lyric-overlay"
-version = "0.1.0"
+version = "0.0.1"
 description = "View synced lyrics of any song on a floating window"
 dependencies = [
     "pywebview>=5.1",
@@ -18,6 +18,9 @@ dependencies = [
     "PyQt6>=6.9.1",
     "PyQt6-WebEngine>=6.9.0"
 ]
+
+[tool.setuptools.package-data]
+lyric_overlay = ["content/*", "config.default.toml"]
 
 [project.scripts]
 lyric-overlay = "lyric_overlay.main:main"
