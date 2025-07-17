@@ -17,7 +17,7 @@ import base64
 import webview
 import toml
 from pynput import keyboard
-import helpers
+from . import helpers
 from importlib import resources
 
 if getattr(sys, 'frozen', False):
@@ -196,6 +196,7 @@ class Overlay:
                 pos = self.player.get_track_position()
                 if not pos:
                     self._show_notice("Error while accessing media player status.")
+                    continue
                 lyric_index = lyrics.get_current_lyric_index(
                     pos
                 )
@@ -217,7 +218,6 @@ class WindowEventHandler:
             return False
 
 def main():
-
     window = webview.create_window(
         "LyricOverlay",
         html=HTML_CONTENT,
@@ -244,5 +244,13 @@ def main():
     window.events.closing += windowEventHandler.on_closing
     webview.start(overlay.init, gui="gtk")
 
-if __name__ == "__main__":
-    main()
+# def main():
+#     import pynput
+#     from pynput import keyboard
+
+#     def on_press(key):
+#         print(f"Key pressed: {key}")
+
+#     listener = keyboard.Listener(on_press=on_press)
+#     listener.start()
+#     listener.join()
