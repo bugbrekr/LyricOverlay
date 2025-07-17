@@ -16,7 +16,7 @@ past_opacity = 100 # in percent
 future_opacity = 50 # in percent
 
 [keybinds]
-# Use '<cmd>' for the Super (or Windows) key
+# Use '<cmd>' for the Super/Meta (or Windows) key
 show_hide = "<ctrl>+<cmd>+k"
 
 [behaviour]
@@ -29,3 +29,4 @@ snap_to_corner_threshold_percent = 2.5
 
 [other]
 cache_location = "~/.cache/LyricOverlay/"
+acceptable_duration_difference = 1 # in seconds

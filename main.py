@@ -34,25 +34,25 @@ if platform.system() == "Linux":
     config = toml.load(os.path.join(os.path.expanduser("~/.config/"), "LyricOverlay.toml"))
 else:
     raise NotImplementedError(f"{platform.system()} is not supported!")
-KEYBINDS_SHOW_HIDE = config["keybinds"]["show_hide"]
-SCREEN_SELECTOR = config["window"]["screen_selector"]
+KEYBINDS_SHOW_HIDE = config["keybinds"].get("show_hide", "<ctrl>+<cmd>+k")
+SCREEN_SELECTOR = config["window"].get("screen_selector", 0)
 
 SCREEN_SIZE = webview.screens[SCREEN_SELECTOR].width, webview.screens[SCREEN_SELECTOR].height
 
 if platform.system() == "Linux":
-    LYRICS_CACHE_LOCATION = os.path.expanduser(config["other"]["cache_location"])
+    LYRICS_CACHE_LOCATION = os.path.expanduser(config["other"].get("cache_location", "~/.cache/LyricOverlay/"))
 else:
     raise NotImplementedError(f"{platform.system()} is not supported!")
 os.makedirs(LYRICS_CACHE_LOCATION, exist_ok=True)
 
-ACCEPTABLE_DURATION_DIFFERENCE = config["other"].get("acceptable_duration_difference")
+ACCEPTABLE_DURATION_DIFFERENCE = config["other"].get("acceptable_duration_difference", 1)
 
 with open(os.path.join(CWD, "content/main.html"), encoding="utf-8") as f:
     HTML_CONTENT = f.read()
 
 def _get_adjusted_window_geometry():
     sw, sh = SCREEN_SIZE
-    cwp, chp = config["window"]["width_percent"], config["window"]["height_percent"]
+    cwp, chp = config["window"].get("width_percent", 20), config["window"].get("height_percent", 55)
     w, h = helpers.get_adjusted_window_geometry((sw, sh), (cwp, chp))
     return w, h
 
@@ -63,21 +63,21 @@ window = webview.create_window(
     resizable=False,
     on_top=True,
     frameless=True,
-    easy_drag=config["behaviour"]["allow_dragging"],
+    easy_drag=config["behaviour"].get("allow_dragging", True),
     focus=False,
     transparent=True,
-    background_color=config["theme"]["background_colour"],
+    background_color=config["theme"].get("background_colour", "#000000"),
     draggable=False,
     zoomable=False,
     width=WINDOW_GEOMETRY[0],
     height=WINDOW_GEOMETRY[1],
-    x=SCREEN_SIZE[0]-WINDOW_GEOMETRY[0] if config["window"]["x"] == -1 else config["window"]["x"],
-    y=SCREEN_SIZE[1]-WINDOW_GEOMETRY[1] if config["window"]["y"] == -1 else config["window"]["y"]
+    x=SCREEN_SIZE[0]-WINDOW_GEOMETRY[0] if config["window"].get("x", -1) == -1 else config["window"].get("x", -1),
+    y=SCREEN_SIZE[1]-WINDOW_GEOMETRY[1] if config["window"].get("y", 0) == -1 else config["window"].get("y", 0)
 )
 
 class Overlay:
     """This class handles the overlay window."""
-    _snap_to_corner_threshold_percent = config["behaviour"]["snap_to_corner_threshold_percent"]
+    _snap_to_corner_threshold_percent = config["behaviour"].get("snap_to_corner_threshold_percent", 2.5)
     SNAP_TO_CORNER_THRESHOLD = (sum(SCREEN_SIZE)/2)*_snap_to_corner_threshold_percent/100
     SNAP_TO_HOR_EDGE_THREDHOLD = SCREEN_SIZE[0]*_snap_to_corner_threshold_percent/100
     SNAP_TO_VER_EDGE_THREDHOLD = SCREEN_SIZE[1]*_snap_to_corner_threshold_percent/100
@@ -128,18 +128,18 @@ class Overlay:
         elif abs(SCREEN_SIZE[1]-(y+self.win.height)) <= self.SNAP_TO_VER_EDGE_THREDHOLD: # SOUTH
             self.win.move(x, SCREEN_SIZE[1]-self.win.height)
     def _apply_stylesheet(self):
-        _opacity = config["theme"]["opacity"]/100
-        _bg_rgb = helpers.hex_to_rgb(config["theme"]["background_colour"])
+        _opacity = config["theme"].get("opacity", 85)/100
+        _bg_rgb = helpers.hex_to_rgb(config["theme"].get("background_colour", "#000000"))
         background_colour = _bg_rgb+(_opacity,)
-        text_colour = helpers.hex_to_rgb(config["theme"]["text_colour"])
+        text_colour = helpers.hex_to_rgb(config["theme"].get("text_colour", "#FFFFFF"))
         stylesheet = helpers.render_template(
             os.path.join(CWD, "content/main.css"),
             background_colour=[str(i) for i in background_colour],
             text_colour=[str(i) for i in text_colour],
-            font_style=config["theme"]["font_style"],
-            font_size=config["theme"]["font_size"],
-            past_opacity=config["theme"]["past_opacity"]/100,
-            future_opacity=config["theme"]["future_opacity"]/100
+            font_style=config["theme"].get("font_style", "Consolas"),
+            font_size=config["theme"].get("font_size", 22),
+            past_opacity=config["theme"].get("past_opacity", 100)/100,
+            future_opacity=config["theme"].get("future_opacity", 50)/100
         )
         self.win.load_css(stylesheet)
     def init(self):
@@ -224,11 +224,11 @@ class WindowEventHandler:
     """Class of all functions that handle window events."""
     def on_minimized(self):
         """Handle window minimize"""
-        if not config["behaviour"]["allow_minimise"]:
+        if not config["behaviour"].get("allow_minimise", False):
             window.restore()
     def on_closing(self):
         """Handle window closing"""
-        if not config["behaviour"]["allow_closing"]:
+        if not config["behaviour"].get("allow_closing", False):
             return False
 
 windowEventHandler = WindowEventHandler()
