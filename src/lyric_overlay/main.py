@@ -20,15 +20,6 @@ from pynput import keyboard
 from . import helpers
 from importlib import resources
 
-if 'PyQt6' in sys.modules:
-    print("Warning: PyQt6 already imported, this might cause issues")
-
-if getattr(sys, 'frozen', False):
-    # pylint: disable=protected-access
-    CWD = sys._MEIPASS
-else:
-    CWD = os.getcwd()
-
 if platform.system() == "Linux":
     config_dir = os.path.expanduser("~/.config/")
     if not os.path.exists(os.path.join(config_dir, "LyricOverlay.toml")):
