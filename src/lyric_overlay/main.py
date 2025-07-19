@@ -20,6 +20,15 @@ from pynput import keyboard
 from . import helpers
 from importlib import resources
 
+if 'PyQt6' in sys.modules:
+    print("Warning: PyQt6 already imported, this might cause issues")
+
+if getattr(sys, 'frozen', False):
+    # pylint: disable=protected-access
+    CWD = sys._MEIPASS
+else:
+    CWD = os.getcwd()
+
 if platform.system() == "Linux":
     config_dir = os.path.expanduser("~/.config/")
     if not os.path.exists(os.path.join(config_dir, "LyricOverlay.toml")):
@@ -158,6 +167,7 @@ class Overlay:
         prev_track_info = ()
         prev_lyric_index = (-1, 0)
         while True:
+            time.sleep(0.5)
             if not self.window_shown:
                 prev_track_info = ()
                 prev_lyric_index = (-1, 0)
@@ -189,6 +199,7 @@ class Overlay:
                 pos = self.player.get_track_position()
                 if not pos:
                     self._show_notice("Error while accessing media player status.")
+                    continue
                 lyric_index = lyrics.get_current_lyric_index(
                     pos
                 )
@@ -210,7 +221,6 @@ class WindowEventHandler:
             return False
 
 def main():
-    # debug_webview_creation()
     window = webview.create_window(
         "LyricOverlay",
         html=HTML_CONTENT,
@@ -235,8 +245,15 @@ def main():
 
     window.events.minimized += windowEventHandler.on_minimized
     window.events.closing += windowEventHandler.on_closing
-
     webview.start(overlay.init, gui="gtk")
 
-if __name__ == "__main__":
-    main()
+# def main():
+#     import pynput
+#     from pynput import keyboard
+
+#     def on_press(key):
+#         print(f"Key pressed: {key}")
+
+#     listener = keyboard.Listener(on_press=on_press)
+#     listener.start()
+#     listener.join()
