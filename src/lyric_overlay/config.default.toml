@@ -2,7 +2,7 @@
 width_percent = 20 # width with respect to the screen
 height_percent = 55 # height with respect to the screen
 screen_selector = 0 # for multi-monitor setup (buggy!)
-# initial window placement (-1 for extreme (right or bottom) end)
+# initial window placement (-1 for extreme end (right or bottom for x or y respectively))
 x = -1
 y = 0
 
@@ -12,8 +12,8 @@ background_colour = "#000000" # only hex-codes work for now
 text_colour = "#FFFFFF"
 font_size = 22
 font_style = "Consolas" # limited font selection for now
-past_opacity = 100 # in percent
-future_opacity = 50 # in percent
+future_opacity_percent = 50 # upcoming lyric
+past_opacity_percent = 100 # past lyric
 
 [keybinds]
 # Use '<cmd>' for the Super/Meta (or Windows) key
@@ -24,9 +24,8 @@ allow_dragging = true
 allow_minimise = false
 allow_maximise = false
 allow_closing = false
-# automatically snaps to the corner when in the specified threshold
-snap_to_corner_threshold_percent = 2.5
+snap_threshold_percent = 2.5
 
 [other]
-cache_location = "~/.cache/LyricOverlay/"
-acceptable_duration_difference = 1 # in seconds
+linux_cache_location = "~/.cache/LyricOverlay/"
+acceptable_duration_difference = 1.0 # used for matching online lyrics. in seconds
