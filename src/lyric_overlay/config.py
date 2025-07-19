@@ -59,7 +59,7 @@ class Config:
         self.other = Other(raw_config.get("other", {}))
         match platform.system():
             case "Linux":
-                self.other.cache_location = self.other.linux_cache_location
+                self.other.cache_location = os.path.expanduser(self.other.linux_cache_location)
                 os.makedirs(self.other.cache_location, exist_ok=True)
 
 def load_raw_config() -> dict[str, dict[str, str|int|float|bool]]:

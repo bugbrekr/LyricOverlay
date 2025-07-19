@@ -21,3 +21,13 @@ def render_template(path, **variables) -> str:
         content = f.read()
     template = env.from_string(content)
     return template.render(variables)
+
+def check_point_in_rect(
+        point:tuple[float, float],
+        rect:tuple[tuple[float, float], tuple[float, float]]
+    ) -> bool:
+    if point[0] < rect[0][0] or point[0] > rect[1][0]:
+        return False
+    if point[1] < rect[0][1] or point[1] > rect[1][1]:
+        return False
+    return True

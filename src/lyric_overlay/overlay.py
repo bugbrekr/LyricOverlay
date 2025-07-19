@@ -1,5 +1,5 @@
 import webview
-from pynput import keyboard
+from pynput import keyboard, mouse
 import math
 from importlib import resources
 import time
@@ -25,7 +25,24 @@ class Overlay:
             self.config.other.acceptable_duration_difference
         )
         self.status = "idle"
+        self.mouse_held = False
+        self.mouse_listener = mouse.Listener(
+            on_click=self._on_click
+        )
+        self.mouse_listener.start()
         threading.Thread(target=self._init_hotkey_listener).start()
+    def _on_click(self, x, y, button, pressed):
+        """Track left mouse button state"""
+        if button == mouse.Button.left:
+            self.mouse_held = pressed
+            if not pressed and commons.check_point_in_rect(
+                (x, y),
+                (
+                    (self.win.x, self.win.y),
+                    (self.win.x+self.win.width, self.win.y+self.win.height)
+                )
+            ):
+                self._snap_window_to_corner()
     def _init_hotkey_listener(self):
         def for_canonical_l(func):
             return lambda k: func(l.canonical(k))
@@ -122,7 +139,7 @@ class Overlay:
                 prev_lyric_index = (-1, 0)
                 self._on_idle()
                 continue
-            self._snap_window_to_corner()
+            # self._snap_window_to_corner()
 
             track_info = self.player.get_track_info()
             if track_info != prev_track_info:
