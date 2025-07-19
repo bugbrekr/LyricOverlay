@@ -15,6 +15,69 @@ import requests
 
 LRCLIB_ROOT_URL = "https://lrclib.net"
 
+class SyncedLyrics:
+    """Encapsulate the synced lyrics data in a nice class to use cool functions."""
+    def __init__(self, raw_lyrics, track_title, track_artist):
+        self._raw_lyrics = raw_lyrics
+        self.track_title = track_title
+        self.track_artist = track_artist
+        self._parse_lyrics(self._raw_lyrics)
+    def _extract_parts(self, raw_lyric, decimal_precision=2) -> tuple[float|None, str]: # i forgot what this does
+        if len(raw_lyric) == 8+decimal_precision:
+            lyric = ""
+        else:
+            if raw_lyric[8+decimal_precision] == " ":
+                lyric = raw_lyric[9+decimal_precision:]
+            else:
+                lyric = raw_lyric[8+decimal_precision:]
+        _timest = raw_lyric[1:7+decimal_precision]
+        try:
+            timest = (int(_timest[:2])*60)+float(_timest[3:])
+        except ValueError:
+            return None, lyric
+        return round(timest, 2), lyric
+    def _parse_lyrics(self, raw_lyrics): # i forgot how this does
+        raw_lyrics_list = raw_lyrics.strip().split("\n")
+        self.timest_list = []
+        self.lyrics_list = []
+        _timest = 0.0
+        for raw_lyric in raw_lyrics_list:
+            _r = re.findall(r"\[\d\d:\d\d.\d\d\]", raw_lyric)
+            if _r:
+                __timest, lyric = self._extract_parts(raw_lyric)
+            else:
+                _r = re.findall(r"\[\d\d:\d\d.\d\d\d\]", raw_lyric)
+                if _r:
+                    __timest, lyric = self._extract_parts(raw_lyric, 3)
+                else:
+                    self.timest_list.append(_timest)
+                    self.lyrics_list.append(raw_lyric) # rare situation, not ideal, no one cares.
+                    continue
+            if __timest is None:
+                __timest = _timest
+            self.timest_list.append(__timest)
+            self.lyrics_list.append(lyric)
+            _timest = __timest
+        self.plain_lyrics = "\n".join(self.lyrics_list)
+    def get_current_lyric_index(self, position):
+        """
+        Return the index for the currently playing lyric and
+        the duration passed since the lyric.
+        """
+        for i, timest in enumerate(self.timest_list):
+            if position < self.timest_list[0]:
+                break
+            elif i == len(self.timest_list)-1:
+                return i, round(position-timest, 2)
+            elif position < self.timest_list[i+1]:
+                return i, round(position-timest, 2)
+        return 0, round(position-self.timest_list[0], 2)
+    def get_lyric(self, index:int):
+        """Get selected line from lyrics with index."""
+        if index > len(self.lyrics_list)-1:
+            return None
+        return self.lyrics_list[index]
+
 class LyricsFetcher:
     """Fetch lyrics from LRCLIB and handle caching of returned lyrics."""
     def __init__(self, cache_folder, acceptable_duration_difference):
@@ -111,7 +174,7 @@ class LyricsFetcher:
             # don't cache. synced lyrics could be available later.
             return lyrics_data, True, 206
         return {}, False, 501
-    def fetch_synced_lyrics(self, track_title, track_artist, duration:int):
+    def fetch_synced_lyrics(self, track_title, track_artist, duration:int) -> tuple[SyncedLyrics|None, int]:
         """
         Get synced lyrics object for a track.
         Returned status codes:
@@ -125,76 +188,13 @@ class LyricsFetcher:
         """
         lrc, res, code = self.fetch_lrc(track_title, track_artist, duration)
         if not res:
-            return None, False, code
+            return None, code
         if code == 206:
-            return lrc["plain_lyrics"], False, 206
+            return None, 206
         elif code == 204:
-            return None, False, 206
+            return None, 206
         return SyncedLyrics(
             lrc["synced_lyrics"],
             lrc["track_title"],
             lrc["track_artist"],
-        ), True, 200
-
-class SyncedLyrics:
-    """Encapsulate the synced lyrics data in a nice class to use cool functions."""
-    def __init__(self, raw_lyrics, track_title, track_artist):
-        self._raw_lyrics = raw_lyrics
-        self.track_title = track_title
-        self.track_artist = track_artist
-        self._parse_lyrics(self._raw_lyrics)
-    def _extract_parts(self, raw_lyric, decimal_precision=2) -> tuple[float|None, str]: # i forgot what this does
-        if len(raw_lyric) == 8+decimal_precision:
-            lyric = ""
-        else:
-            if raw_lyric[8+decimal_precision] == " ":
-                lyric = raw_lyric[9+decimal_precision:]
-            else:
-                lyric = raw_lyric[8+decimal_precision:]
-        _timest = raw_lyric[1:7+decimal_precision]
-        try:
-            timest = (int(_timest[:2])*60)+float(_timest[3:])
-        except ValueError:
-            return None, lyric
-        return round(timest, 2), lyric
-    def _parse_lyrics(self, raw_lyrics): # i forgot how this does
-        raw_lyrics_list = raw_lyrics.strip().split("\n")
-        self.timest_list = []
-        self.lyrics_list = []
-        _timest = 0.0
-        for raw_lyric in raw_lyrics_list:
-            _r = re.findall(r"\[\d\d:\d\d.\d\d\]", raw_lyric)
-            if _r:
-                __timest, lyric = self._extract_parts(raw_lyric)
-            else:
-                _r = re.findall(r"\[\d\d:\d\d.\d\d\d\]", raw_lyric)
-                if _r:
-                    __timest, lyric = self._extract_parts(raw_lyric, 3)
-                else:
-                    self.timest_list.append(_timest)
-                    self.lyrics_list.append(raw_lyric) # rare situation, not ideal, no one cares.
-                    continue
-            if __timest is None:
-                __timest = _timest
-            self.timest_list.append(__timest)
-            self.lyrics_list.append(lyric)
-            _timest = __timest
-        self.plain_lyrics = "\n".join(self.lyrics_list)
-    def get_current_lyric_index(self, position):
-        """
-        Return the index for the currently playing lyric and
-        the duration passed since the lyric.
-        """
-        for i, timest in enumerate(self.timest_list):
-            if position < self.timest_list[0]:
-                break
-            elif i == len(self.timest_list)-1:
-                return i, round(position-timest, 2)
-            elif position < self.timest_list[i+1]:
-                return i, round(position-timest, 2)
-        return 0, round(position-self.timest_list[0], 2)
-    def get_lyric(self, index:int):
-        """Get selected line from lyrics with index."""
-        if index > len(self.lyrics_list)-1:
-            return None
-        return self.lyrics_list[index]
+        ), 200

@@ -101,12 +101,14 @@ class Overlay:
         self.win.show()
         self._apply_stylesheet()
         self.mainloop()
+    def _hide_notice(self):
+        self.win.evaluate_js("hide_notice();")
     def _on_idle(self):
         self.status = "idle"
         self.win.evaluate_js("clear_lyrics(); hide_notice();")
     def _on_track_changed(self):
-        self._show_notice("Loading...")
         self.win.evaluate_js("clear_lyrics()")
+        self._show_notice("Loading...")
         self.status = "loading"
     def _on_lyrics_failure(self, code):
         self.status = "idle"
@@ -132,6 +134,7 @@ class Overlay:
         """Handles continuous processes."""
         prev_track_info = ()
         prev_lyric_index = (-1, 0)
+        lyrics = lyrics_helper.SyncedLyrics("", "", "")
         while True:
             time.sleep(0.5)
             if not self.window_shown:
@@ -139,21 +142,21 @@ class Overlay:
                 prev_lyric_index = (-1, 0)
                 self._on_idle()
                 continue
-            # self._snap_window_to_corner()
 
             track_info = self.player.get_track_info()
             if track_info != prev_track_info:
                 if track_info is None:
                     # Show idle notice.
                     self._on_idle()
+                    continue
                 else:
                     self._on_track_changed()
-                    lyrics, res, code = self.lyrics_fetcher.fetch_synced_lyrics(
+                    lyrics, code = self.lyrics_fetcher.fetch_synced_lyrics(
                         track_info[0],
                         track_info[1],
                         track_info[2]
                     )
-                    if res is True:
+                    if isinstance(lyrics, lyrics_helper.SyncedLyrics):
                         self._on_lyrics_loaded(lyrics.plain_lyrics)
                     elif code == 204:
                         # Synced lyrics not available.
@@ -164,9 +167,9 @@ class Overlay:
             if self.status == "lrc_ready":
                 pos = self.player.get_track_position()
                 if not pos:
-                    self._show_notice("Error while accessing media player status.")
+                    self._show_notice("An error occurred while accessing media player status.")
                     continue
-                lyric_index = lyrics.get_current_lyric_index(
+                lyric_index = lyrics.get_current_lyric_index( # type: ignore it's handled by self.status
                     pos
                 )
                 if lyric_index != prev_lyric_index and lyric_index[1]:
